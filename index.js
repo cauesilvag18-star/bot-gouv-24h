@@ -1,3 +1,18 @@
+const http = require('http');
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Bot está online!');
+});
+server.listen(3000);
+
+// --- CÓDIGO DO SERVIDOR (PARA O RENDER PARAR DE DAR ERRO) ---
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Bot está online!');
+}).listen(3000);
+// ------------------------------------------------------------
+
 const { Client, GatewayIntentBits, ActivityType, EmbedBuilder, MessageType, Collection, REST, Routes, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 
 const client = new Client({
@@ -16,7 +31,7 @@ function atualizarStatus(guild) {
     client.user.setActivity(`${guild.memberCount} membros!`, { type: ActivityType.Playing });
 }
 
-client.once('clientReady', async (c) => {
+client.once('ready', async (c) => { // Corrigido de 'clientReady' para 'ready'
     console.log(`Bot ${c.user.tag} online!`);
     const guild = c.guilds.cache.get(SERVIDOR_ID);
     if (guild) atualizarStatus(guild);
@@ -89,7 +104,7 @@ async function finalizarSorteio(msg, premio) {
     const ganhador = participantes.length > 0 ? participantes[Math.floor(Math.random() * participantes.length)] : null;
     
     await msg.edit({ 
-        embeds: [new EmbedBuilder().setTitle('🎉 SORTEIO ENCERRADO').setDescription(`Prêmio: **${premio}**\n\nO sorteio acabou há 1 minuto.\nGanhador: ${ganhador ? `<@${ganhador}>` : 'Ninguém participou!'}\nData: ${new Date().toLocaleString('pt-BR')}\nTotal de Participantes: ${lista.size}`)], 
+        embeds: [new EmbedBuilder().setTitle('🎉 SORTEIO ENCERRADO').setDescription(`Prêmio: **${premio}**\n\nO sorteio acabou.\nGanhador: ${ganhador ? `<@${ganhador}>` : 'Ninguém participou!'}\nTotal de Participantes: ${lista.size}`)], 
         components: [] 
     });
     sorteiosEmMemoria.delete(msg.id);
