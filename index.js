@@ -11,7 +11,7 @@ const client = new Client({
 // CONFIGURAÇÕES DE ID
 const CANAL_ENTRADA_ID = '1499849955588833335';
 const ID_SERVIDOR = '1499849954322284607';
-const ID_MSG_IMAGEM = '1514835174389448745'; 
+const ID_MSG_IMAGEM = '1514836740706402326'; // ID ATUALIZADO
 
 client.once('ready', (c) => {
     console.log(`Bot ${c.user.tag} online!`);
@@ -37,7 +37,10 @@ client.on('guildMemberAdd', async (member) => {
                      `Sinta-se em casa e divirta-se muito! 🧸`, 
             files: anexo ? [anexo.url] : [] 
         });
-    } catch (e) { canal.send(`Bem-vindo(a), ${member}!`); }
+    } catch (e) { 
+        console.error("Erro ao buscar imagem:", e);
+        canal.send(`Bem-vindo(a), ${member}!`); 
+    }
 });
 
 // Sistema de Tickets
