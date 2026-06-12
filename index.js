@@ -1,15 +1,17 @@
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ActivityType } = require('discord.js');
 const http = require('http');
 
+// Servidor para manter o bot ativo no Render
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot online!'); }).listen(process.env.PORT || 3000);
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildPresences]
 });
 
+// CONFIGURAÇÕES DE ID
 const CANAL_ENTRADA_ID = '1499849955588833335';
 const ID_SERVIDOR = '1499849954322284607';
-const ID_MSG_IMAGEM = '1514835174389448745';
+const ID_MSG_IMAGEM = '1514835174389448745'; 
 
 client.once('ready', (c) => {
     console.log(`Bot ${c.user.tag} online!`);
@@ -22,25 +24,32 @@ client.once('ready', (c) => {
     }, 60000);
 });
 
-// Boas-vindas
+// Sistema de Boas-vindas Fofinho
 client.on('guildMemberAdd', async (member) => {
     const canal = member.guild.channels.cache.get(CANAL_ENTRADA_ID);
     if (!canal) return;
     try {
         const msg = await canal.messages.fetch(ID_MSG_IMAGEM);
         const anexo = msg.attachments.first();
-        await canal.send({ content: `BEM-VINDO! Olá ${member}, seja bem-vindo(a)!`, files: anexo ? [anexo.url] : [] });
+        await canal.send({ 
+            content: `🌸 **Bem-vindo(a) à nossa comunidade, ${member}!** 🌸\n\n` +
+                     `Estamos muito felizes em ter você aqui conosco! ✨\n` +
+                     `Sinta-se em casa e divirta-se muito! 🧸`, 
+            files: anexo ? [anexo.url] : [] 
+        });
     } catch (e) { canal.send(`Bem-vindo(a), ${member}!`); }
 });
 
-// Lógica de Tickets
+// Sistema de Tickets
 client.on('interactionCreate', async (interaction) => {
-    // ABRIR TICKET
     if (interaction.isButton() && interaction.customId === 'abrir_ticket') {
         const canal = await interaction.guild.channels.create({
             name: `ticket-${interaction.user.username}`,
             type: ChannelType.GuildText,
-            permissionOverwrites: [{ id: interaction.guild.id, deny: ['ViewChannel'] }, { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }]
+            permissionOverwrites: [
+                { id: interaction.guild.id, deny: ['ViewChannel'] }, 
+                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }
+            ]
         });
         
         const row = new ActionRowBuilder().addComponents(
@@ -55,7 +64,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `✅ Ticket criado: ${canal}`, ephemeral: true });
     }
 
-    // FECHAR TICKET
     if (interaction.isButton() && interaction.customId === 'fechar_ticket') {
         if (!interaction.member.permissions.has('Administrator')) return interaction.reply({ content: 'Apenas admins podem fechar tickets!', ephemeral: true });
         await interaction.reply('Fechando o ticket em 5 segundos...');
@@ -63,7 +71,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// Comando para enviar o botão de abrir ticket
+// Comandos
 client.on('messageCreate', async (message) => {
     if (!message.member?.permissions.has('Administrator')) return;
     if (message.content === '!enviarticket') {
