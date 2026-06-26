@@ -1,6 +1,13 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+// --- SERVIDOR HTTP PARA O RENDER (MANTÉM O BOT ACORDADO) ---
+const http = require('http');
+http.createServer((req, res) => {
+    res.write("Bot esta online!");
+    res.end();
+}).listen(3000);
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -10,7 +17,7 @@ const client = new Client({
     ]
 });
 
-// CONFIGURAÇÕES
+// CONFIGURAÇÕES (Variáveis de ambiente)
 const ID_CANAL_BOAS_VINDAS = '1500503884978851910';
 const ID_CARGO_STAFF = process.env.ID_STAFF;
 const ID_CARGO_AUTOMATICO = process.env.ID_CARGO_AUTOMATICO;
@@ -24,11 +31,9 @@ client.on('guildMemberAdd', async (member) => {
     // 1. Dar o cargo automático
     try {
         const cargo = member.guild.roles.cache.get(ID_CARGO_AUTOMATICO);
-        if (cargo) {
-            await member.roles.add(cargo);
-        }
+        if (cargo) await member.roles.add(cargo);
     } catch (err) {
-        console.error('Erro ao dar cargo automático:', err);
+        console.error('Erro ao dar cargo:', err);
     }
 
     // 2. Enviar a mensagem de boas-vindas
@@ -38,7 +43,7 @@ client.on('guildMemberAdd', async (member) => {
     const embedBoasVindas = new EmbedBuilder()
         .setColor('#FF0000') 
         .setTitle('👋 BEM-VINDO(A) À NOSSA COMUNIDADE!')
-        .setDescription(`Olá ${member}! Você recebeu o cargo automático. Divirta-se! 🚀`)
+        .setDescription(`Olá ${member}! Que bom ter você por aqui. Prepare-se para se divertir muito no mundo do Roblox! 🚀`)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .setFooter({ text: `Agora somos ${member.guild.memberCount} membros! 🎉` })
         .setTimestamp();
@@ -52,7 +57,7 @@ client.on('messageCreate', async (message) => {
 
     if (message.content === '!ping') message.reply('🏓 Pong!');
 
-    // Teste de recepção
+    // Comando de Teste de Recepção
     if (message.content === '!recepcao') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
         const canal = message.guild.channels.cache.get(ID_CANAL_BOAS_VINDAS);
@@ -112,7 +117,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isButton() && interaction.customId === 'fechar_ticket') {
-        await interaction.reply({ content: '🔒 Fechando canal...' });
+        await interaction.reply({ content: '🔒 Este ticket será fechado e deletado em 5 segundos...' });
         setTimeout(() => interaction.channel.delete().catch(console.error), 5000);
     }
 });
