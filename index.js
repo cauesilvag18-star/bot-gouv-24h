@@ -1,90 +1,120 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ActivityType } = require('discord.js');
-const http = require('http');
-
-// Servidor para manter o bot ativo no Render
-http.createServer((req, res) => { res.writeHead(200); res.end('Bot online!'); }).listen(process.env.PORT || 3000);
+require('dotenv').config();
+const { Client, GatewayIntentBits, EmbedBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildPresences]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers 
+    ]
 });
 
-// CONFIGURAÇÕES DE ID
-const CANAL_ENTRADA_ID = '1499849955588833335';
-const ID_SERVIDOR = '1499849954322284607';
-const ID_MSG_IMAGEM = '1514836740706402326'; // ID ATUALIZADO
+// CONFIGURAÇÕES
+const ID_CANAL_BOAS_VINDAS = '1500503884978851910';
+const ID_CARGO_STAFF = process.env.ID_STAFF;
+const ID_CARGO_AUTOMATICO = process.env.ID_CARGO_AUTOMATICO;
 
-client.once('ready', (c) => {
-    console.log(`Bot ${c.user.tag} online!`);
-    setInterval(() => {
-        const guild = client.guilds.cache.get(ID_SERVIDOR);
-        if (guild) {
-            const online = guild.members.cache.filter(m => m.presence?.status !== 'offline').size;
-            client.user.setActivity(`${online} membros online!`, { type: ActivityType.Playing });
-        }
-    }, 60000);
+client.once('ready', () => {
+    console.log(`🤖 Bot online como ${client.user.tag}!`);
 });
 
-// Sistema de Boas-vindas Fofinho
+// --- SISTEMA DE BOAS-VINDAS E CARGO AUTOMÁTICO ---
 client.on('guildMemberAdd', async (member) => {
-    const canal = member.guild.channels.cache.get(CANAL_ENTRADA_ID);
-    if (!canal) return;
+    // 1. Dar o cargo automático
     try {
-        const msg = await canal.messages.fetch(ID_MSG_IMAGEM);
-        const anexo = msg.attachments.first();
-        await canal.send({ 
-            content: `🌸 **Bem-vindo(a) à nossa comunidade, ${member}!** 🌸\n\n` +
-                     `Estamos muito felizes em ter você aqui conosco! ✨\n` +
-                     `Sinta-se em casa e divirta-se muito! 🧸`, 
-            files: anexo ? [anexo.url] : [] 
-        });
-    } catch (e) { 
-        console.error("Erro ao buscar imagem:", e);
-        canal.send(`Bem-vindo(a), ${member}!`); 
+        const cargo = member.guild.roles.cache.get(ID_CARGO_AUTOMATICO);
+        if (cargo) {
+            await member.roles.add(cargo);
+        }
+    } catch (err) {
+        console.error('Erro ao dar cargo automático:', err);
+    }
+
+    // 2. Enviar a mensagem de boas-vindas
+    const canal = member.guild.channels.cache.get(ID_CANAL_BOAS_VINDAS);
+    if (!canal) return;
+
+    const embedBoasVindas = new EmbedBuilder()
+        .setColor('#FF0000') 
+        .setTitle('👋 BEM-VINDO(A) À NOSSA COMUNIDADE!')
+        .setDescription(`Olá ${member}! Você recebeu o cargo automático. Divirta-se! 🚀`)
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+        .setFooter({ text: `Agora somos ${member.guild.memberCount} membros! 🎉` })
+        .setTimestamp();
+
+    await canal.send({ content: `Seja muito bem-vindo(a), ${member}! ✨`, embeds: [embedBoasVindas] });
+});
+
+// --- COMANDOS MENSAGEM ---
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    if (message.content === '!ping') message.reply('🏓 Pong!');
+
+    // Teste de recepção
+    if (message.content === '!recepcao') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+        const canal = message.guild.channels.cache.get(ID_CANAL_BOAS_VINDAS);
+        if (canal) await canal.send(`Teste de boas-vindas para ${message.author}!`);
+    }
+
+    // Setup Ticket
+    if (message.content === '!setup-ticket') {
+        const menuSelecao = new StringSelectMenuBuilder()
+            .setCustomId('menu_ticket')
+            .setPlaceholder('Selecione uma opção')
+            .addOptions(
+                new StringSelectMenuOptionBuilder().setLabel('Suporte Geral').setValue('suporte_geral'),
+                new StringSelectMenuOptionBuilder().setLabel('Denúncia').setValue('denuncia'),
+                new StringSelectMenuOptionBuilder().setLabel('Bugs').setValue('bugs')
+            );
+
+        const linhaMenu = new ActionRowBuilder().addComponents(menuSelecao);
+        const embedPainel = new EmbedBuilder()
+            .setColor('#332d2d')
+            .setTitle('🇧🇷 ROBLOX BRASIL - ATENDIMENTO')
+            .setDescription('Escolha uma das opções abaixo para abrir um ticket.');
+
+        await message.channel.send({ embeds: [embedPainel], components: [linhaMenu] });
     }
 });
 
-// Sistema de Tickets
+// --- SISTEMA DE INTERAÇÕES (TICKETS) ---
 client.on('interactionCreate', async (interaction) => {
-    if (interaction.isButton() && interaction.customId === 'abrir_ticket') {
-        const canal = await interaction.guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
+    if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
+        const opcao = interaction.values[0];
+        const nomeCanal = `${opcao}-${interaction.user.username}`.substring(0, 32);
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const canalTicket = await interaction.guild.channels.create({
+            name: nomeCanal,
             type: ChannelType.GuildText,
             permissionOverwrites: [
-                { id: interaction.guild.id, deny: ['ViewChannel'] }, 
-                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }
-            ]
+                { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                { id: ID_CARGO_STAFF, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+            ],
         });
-        
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('fechar_ticket').setLabel('Fechar Ticket').setStyle(ButtonStyle.Danger)
+
+        const botaoFechar = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('fechar_ticket').setLabel('Fechar Ticket').setEmoji('🔒').setStyle(ButtonStyle.Secondary)
         );
 
-        await canal.send({
-            content: `Olá ${interaction.user}, bem-vindo ao suporte! Um membro da nossa equipe irá atendê-lo em breve.`,
-            embeds: [new EmbedBuilder().setTitle('🎫 Ticket de Atendimento').setDescription('Descreva seu problema aqui com detalhes.')],
-            components: [row]
+        await canalTicket.send({ 
+            content: `${interaction.user} | <@&${ID_CARGO_STAFF}>`, 
+            embeds: [new EmbedBuilder().setColor('#FF0000').setTitle(`🎫 Ticket: ${opcao}`).setDescription('Aguarde um staffer responder.')],
+            components: [botaoFechar] 
         });
-        await interaction.reply({ content: `✅ Ticket criado: ${canal}`, ephemeral: true });
+
+        await interaction.editReply({ content: `✅ Ticket criado em ${canalTicket}` });
     }
 
     if (interaction.isButton() && interaction.customId === 'fechar_ticket') {
-        if (!interaction.member.permissions.has('Administrator')) return interaction.reply({ content: 'Apenas admins podem fechar tickets!', ephemeral: true });
-        await interaction.reply('Fechando o ticket em 5 segundos...');
+        await interaction.reply({ content: '🔒 Fechando canal...' });
         setTimeout(() => interaction.channel.delete().catch(console.error), 5000);
     }
-});
-
-// Comandos
-client.on('messageCreate', async (message) => {
-    if (!message.member?.permissions.has('Administrator')) return;
-    if (message.content === '!enviarticket') {
-        await message.channel.send({
-            embeds: [new EmbedBuilder().setTitle('SUPORTE').setDescription('Clique abaixo para abrir um ticket.')],
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('abrir_ticket').setLabel('Abrir Ticket').setStyle(ButtonStyle.Primary))]
-        });
-        await message.delete();
-    }
-    if (message.content === '!testeentrada') client.emit('guildMemberAdd', message.member);
 });
 
 client.login(process.env.DISCORD_TOKEN);
