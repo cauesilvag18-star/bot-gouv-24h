@@ -26,29 +26,14 @@ client.once('ready', () => {
     console.log(`🤖 Bot online como ${client.user.tag}!`);
 });
 
-// --- SISTEMA DE BOAS-VINDAS E CARGO AUTOMÁTICO ---
+// --- SISTEMA DE CARGO AUTOMÁTICO ---
 client.on('guildMemberAdd', async (member) => {
-    // 1. Dar o cargo automático
     try {
         const cargo = member.guild.roles.cache.get(ID_CARGO_AUTOMATICO);
         if (cargo) await member.roles.add(cargo);
     } catch (err) {
         console.error('Erro ao dar cargo:', err);
     }
-
-    // 2. Enviar a mensagem de boas-vindas
-    const canal = member.guild.channels.cache.get(ID_CANAL_BOAS_VINDAS);
-    if (!canal) return;
-
-    const embedBoasVindas = new EmbedBuilder()
-        .setColor('#FF0000') 
-        .setTitle('👋 BEM-VINDO(A) À NOSSA COMUNIDADE!')
-        .setDescription(`Olá ${member}! Que bom ter você por aqui. Prepare-se para se divertir muito no mundo do Roblox! 🚀`)
-        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-        .setFooter({ text: `Agora somos ${member.guild.memberCount} membros! 🎉` })
-        .setTimestamp();
-
-    await canal.send({ content: `Seja muito bem-vindo(a), ${member}! ✨`, embeds: [embedBoasVindas] });
 });
 
 // --- COMANDOS MENSAGEM ---
